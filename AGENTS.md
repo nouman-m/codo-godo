@@ -133,3 +133,166 @@ This file documents future requirements for the RAG system. These are NOT implem
 ### Vector Store
 - ChromaDB (local, file-based)
 - Persistent storage in `data/chroma/`
+
+---
+
+# Agent Guidelines
+
+Guidelines for agentic coding agents working on this project.
+
+## Commands
+
+### Virtual Environment
+This project uses a virtual environment at `venv/`. Always activate it before running commands:
+- **Windows**: `.\venv\Scripts\activate` or use full path: `venv\Scripts\python.exe`
+- **macOS/Linux**: `source venv/bin/activate`
+
+### Running the Project
+
+```bash
+# Start API server
+python -m src.api.main
+
+# Run data ingestion pipeline
+python -m src.ingestion.pipeline
+
+# Query via curl
+curl -X POST http://localhost:8000/query \
+  -H "Content-Type: application/json" \
+  -d '{"query": "How to move a character?"}'
+```
+
+### Testing
+
+No tests currently exist. When adding tests, use **pytest**:
+```bash
+# Run all tests
+pytest
+
+# Run a single test file
+pytest tests/test_chunker.py
+
+# Run a single test function
+pytest tests/test_chunker.py::test_chunk_gdscript_file
+```
+
+### Linting/Formatting
+
+Install and use **ruff** for linting and formatting:
+```bash
+pip install ruff
+ruff check src/
+ruff format src/
+```
+
+## Code Style Guidelines
+
+### Imports
+
+Use explicit relative imports within the `src` package:
+```python
+from src import config
+from src.ingestion import pipeline
+from src.retrieval import searcher
+```
+
+Order: standard library → third-party → local.
+
+### Formatting
+
+- **Indentation**: 4 spaces
+- **Line length**: Max 100 characters
+- **String quotes**: Double quotes
+
+### Type Hints
+
+Use Python 3.10+ native types:
+```python
+def search(query: str, top_k: int = None) -> list[SearchResult]:
+```
+
+### Naming
+
+- Files: `snake_case.py`
+- Classes: `PascalCase`
+- Functions/variables: `snake_case`
+- Constants: `UPPER_SNAKE_CASE`
+
+### Dataclasses
+
+Use for structured data:
+```python
+@dataclass
+class Chunk:
+    text: str
+    source: str
+    source_type: str
+    metadata: dict
+```
+
+### Generators
+
+Use `yield` for memory-efficient processing:
+```python
+def chunk_gdscript_file(file_path: Path) -> Iterator[Chunk]:
+    for line in lines:
+        yield Chunk(...)
+```
+
+### Error Handling
+
+For APIs, catch and raise HTTPException:
+```python
+try:
+    results = searcher.search(...)
+except Exception as e:
+    raise HTTPException(status_code=500, detail=str(e))
+```
+
+For ingestion, print errors:
+```python
+try:
+    all_chunks.extend(chunker.chunk_gdscript_repo(repo_file))
+except Exception as e:
+    print(f"Error chunking {repo_file}: {e}")
+```
+
+### Paths
+
+Use `pathlib.Path`:
+```python
+content = file_path.read_text(encoding="utf-8", errors="ignore")
+```
+
+### Configuration
+
+All config in `src/config.py` as module constants.
+
+### FastAPI Conventions
+
+- Use Pydantic BaseModel for request/response
+- Use `async def`
+- Add docstrings to endpoints
+
+## Project Structure
+
+```
+codo-godo/
+├── src/
+│   ├── api/main.py           # FastAPI server
+│   ├── ingestion/
+│   │   ├── downloader.py     # HuggingFace download
+│   │   ├── chunker.py        # GDScript + HTML chunking
+│   │   └── pipeline.py       # Orchestration
+│   ├── retrieval/
+│   │   ├── embedder.py       # Embedding model
+│   │   └── searcher.py       # ChromaDB query
+│   └── config.py             # Settings
+├── data/
+│   ├── chroma/               # ChromaDB storage
+│   ├── godot-docs/           # Godot HTML docs
+│   └── raw/                  # HuggingFace data
+├── tests/                    # Test files (add here)
+├── requirements.txt
+└── README.md
+```
