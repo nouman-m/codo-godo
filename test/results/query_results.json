@@ -122,19 +122,19 @@
           }
         },
         {
-          "text": "## Connecting a signal via code\n\n```gdscript\npublic override void _Ready()\n{\nvar timer = GetNode<Timer>(\"Timer\");\n}\n```",
-          "source": "getting_started/step_by_step/signals.rst",
+          "text": "## Signals\n\n```gdscript\n# game.gd\n```",
+          "source": "tutorials/scripting/gdscript/gdscript_basics.rst",
           "source_type": "godot_docs",
-          "distance": 0.4964176416397095,
+          "distance": 0.517477810382843,
           "metadata": {
-            "file": "/Users/nouman/Projects/codo-godo/src/data/godot-docs/_sources/getting_started/step_by_step/signals.rst.txt",
-            "heading": "Connecting a signal via code",
-            "source": "getting_started/step_by_step/signals.rst",
+            "file": "/Users/nouman/Projects/codo-godo/src/data/godot-docs/_sources/tutorials/scripting/gdscript/gdscript_basics.rst.txt",
+            "heading": "Signals",
+            "source": "tutorials/scripting/gdscript/gdscript_basics.rst",
             "source_type": "godot_docs"
           }
         }
       ],
-      "context": "[godot_docs] ## Connecting a signal in the editor\n\n```gdscript\nIf you are using an external editor (such as VS Code), this\nautomatic code generation might not work. In this case, you need to connect\nthe signal via code as explained in the next section.\n```\n\n---\n\n[godot_docs] ## Complete script example\n\n```gdscript\n## The description of a signal.\nsignal my_signal\n```\n\n---\n\n[godot_docs] ## Signals\n\n```gdscript\nsome_other_node->connect(\"the_signal\", Callable(this, \"my_method\"));\n```\n\n---\n\n[godot_docs] ## Tutorials\n- :doc:`Using Signals <../getting_started/step_by_step/signals>`\n- `GDScript Basics <../tutorials/scripting/gdscript/gdscript_basics.html#signals>`__\nConstructors\n\n---\n\n[godot_docs] ## Connecting a signal via code\n\n```gdscript\npublic override void _Ready()\n{\nvar timer = GetNode<Timer>(\"Timer\");\n}\n```"
+      "context": "[godot_docs] ## Connecting a signal in the editor\n\n```gdscript\nIf you are using an external editor (such as VS Code), this\nautomatic code generation might not work. In this case, you need to connect\nthe signal via code as explained in the next section.\n```\n\n---\n\n[godot_docs] ## Complete script example\n\n```gdscript\n## The description of a signal.\nsignal my_signal\n```\n\n---\n\n[godot_docs] ## Signals\n\n```gdscript\nsome_other_node->connect(\"the_signal\", Callable(this, \"my_method\"));\n```\n\n---\n\n[godot_docs] ## Tutorials\n- :doc:`Using Signals <../getting_started/step_by_step/signals>`\n- `GDScript Basics <../tutorials/scripting/gdscript/gdscript_basics.html#signals>`__\nConstructors\n\n---\n\n[godot_docs] ## Signals\n\n```gdscript\n# game.gd\n```"
     }
   },
   {
@@ -293,16 +293,6 @@
           }
         },
         {
-          "text": "Q: How can you create a countdown timer in Godot that only updates during the physics process, has a 10-second duration, and restarts automatically after reaching zero?\n\nA: To create a countdown timer in Godot that updates during the physics process, has a 10-second duration, and restarts automatically, you can configure a Timer node's `process_callback`, `wait_time`, and ensure that `one_shot` is set to `false`. Here's a GDScript example:\n\n```gdscript\nvar timer = Timer.new()\n\nfunc _ready():\n    timer.process_callback = Timer.TIMER_PROCESS_PHYSICS\n    timer.wait_time = 10.0  # Timer will wait for 10 seconds before timing out\n    timer.one_shot = false  # Timer will restart automatically after timing out\n    add_child(timer)\n    timer.start()\n    timer.connect(\"timeout\", self, \"_on_timer_timeout\")\n\nfunc _on_timer_timeout():\n    print(\"10 seconds have passed. Restarting timer.\")\n```\n\nThis script creates a Timer node, sets it to update every physics frame, sets the countdown duration to 10 seconds, and configures it to restart automatically once it reaches zero. Upon each timeout, it prints a message and restarts.",
-          "source": "godot_4_docs",
-          "source_type": "qa",
-          "distance": 0.937299907207489,
-          "metadata": {
-            "source": "godot_4_docs",
-            "source_type": "qa"
-          }
-        },
-        {
           "text": "## Main script\n\n```gdscript\nGetNode<Timer>(\"StartTimer\").Start();\n}\n```",
           "source": "getting_started/first_2d_game/05.the_main_game_scene.rst",
           "source_type": "godot_docs",
@@ -312,16 +302,6 @@
             "heading": "Main script",
             "source": "getting_started/first_2d_game/05.the_main_game_scene.rst",
             "source_type": "godot_docs"
-          }
-        },
-        {
-          "text": "Q: How can you implement a paused Timer in Godot that resumes counting down from its remaining time once unpaused?\n\nA: To implement a paused Timer in Godot that can resume counting down from its remaining time once unpaused, you first need to set the Timer's `paused` property to `true` to pause it. To resume the timer, set the `paused` property back to `false`. Here's an example to illustrate this:\n\n```gdscript\nvar timer = Timer.new()\n\nfunc _ready():\n    timer.wait_time = 5.0\n    add_child(timer)\n    timer.start()\n    # Pause the timer\n    timer.paused = true\n    # Assume some condition or event triggers the resumption of the timer\n    yield(get_tree().create_timer(2.0), \"timeout\")  # Wait for 2 seconds\n    timer.paused = false  # Resume the timer\n\nfunc _process(delta):\n    if not timer.is_stopped() and not timer.paused:\n        print(\"Timer is running. Time left: \", timer.time_left)\n    elif timer.paused:\n        print(\"Timer is paused.\")\n    else:\n        print(\"Timer has stopped.\")\n```\n\nIn this script, the Timer is started and then immediately paused. After a 2-second delay (simulated by `yield` and `create_timer` for the sake of this example), the Timer is unpaused, resuming its countdown from where it left off. The `_process` function prints the timer's status and remaining time.",
-          "source": "godot_4_docs",
-          "source_type": "qa",
-          "distance": 1.0036944150924683,
-          "metadata": {
-            "source": "godot_4_docs",
-            "source_type": "qa"
           }
         },
         {
@@ -335,9 +315,33 @@
             "source": "getting_started/step_by_step/signals.rst",
             "source_type": "godot_docs"
           }
+        },
+        {
+          "text": "## Signals as C# events\n\n```gdscript\nTimer myTimer = GetNode<Timer>(\"Timer\");\nmyTimer.Timeout += () => GD.Print(\"Timeout!\");\n```",
+          "source": "tutorials/scripting/c_sharp/c_sharp_signals.rst",
+          "source_type": "godot_docs",
+          "distance": 1.0221623182296753,
+          "metadata": {
+            "file": "/Users/nouman/Projects/codo-godo/src/data/godot-docs/_sources/tutorials/scripting/c_sharp/c_sharp_signals.rst.txt",
+            "heading": "Signals as C# events",
+            "source": "tutorials/scripting/c_sharp/c_sharp_signals.rst",
+            "source_type": "godot_docs"
+          }
+        },
+        {
+          "text": "## Creating a custom performance monitor\n\n```gdscript\nextends Timer\n```",
+          "source": "tutorials/scripting/debug/custom_performance_monitors.rst",
+          "source_type": "godot_docs",
+          "distance": 1.0235815048217773,
+          "metadata": {
+            "file": "/Users/nouman/Projects/codo-godo/src/data/godot-docs/_sources/tutorials/scripting/debug/custom_performance_monitors.rst.txt",
+            "heading": "Creating a custom performance monitor",
+            "source": "tutorials/scripting/debug/custom_performance_monitors.rst",
+            "source_type": "godot_docs"
+          }
         }
       ],
-      "context": "[godot_docs] ## Complete script\n\n```gdscript\npublic override void _Ready()\n{\nvar timer = GetNode<Timer>(\"Timer\");\ntimer.Timeout += OnTimerTimeout;\n}\n```\n\n---\n\n[qa] Q: How can you create a countdown timer in Godot that only updates during the physics process, has a 10-second duration, and restarts automatically after reaching zero?\n\nA: To create a countdown timer in Godot that updates during the physics process, has a 10-second duration, and restarts automatically, you can configure a Timer node's `process_callback`, `wait_time`, and ensure that `one_shot` is set to `false`. Here's a GDScript example:\n\n```gdscript\nvar timer = Timer.new()\n\nfunc _ready():\n    timer.process_callback = Timer.TIMER_PROCESS_PHYSICS\n    timer.wait_time = 10.0  # Timer will wait for 10 seconds before timing out\n    timer.one_shot = false  # Timer will restart automatically after timing out\n    add_child(timer)\n    timer.start()\n    timer.connect(\"timeout\", self, \"_on_timer_timeout\")\n\nfunc _on_timer_timeout():\n    print(\"10 seconds have passed. Restarting timer.\")\n```\n\nThis script creates a Timer node, sets it to update every physics frame, sets the countdown duration to 10 seconds, and configures it to restart automatically once it reaches zero. Upon each timeout, it prints a message and restarts.\n\n---\n\n[godot_docs] ## Main script\n\n```gdscript\nGetNode<Timer>(\"StartTimer\").Start();\n}\n```\n\n---\n\n[qa] Q: How can you implement a paused Timer in Godot that resumes counting down from its remaining time once unpaused?\n\nA: To implement a paused Timer in Godot that can resume counting down from its remaining time once unpaused, you first need to set the Timer's `paused` property to `true` to pause it. To resume the timer, set the `paused` property back to `false`. Here's an example to illustrate this:\n\n```gdscript\nvar timer = Timer.new()\n\nfunc _ready():\n    timer.wait_time = 5.0\n    add_child(timer)\n    timer.start()\n    # Pause the timer\n    timer.paused = true\n    # Assume some condition or event triggers the resumption of the timer\n    yield(get_tree().create_timer(2.0), \"timeout\")  # Wait for 2 seconds\n    timer.paused = false  # Resume the timer\n\nfunc _process(delta):\n    if not timer.is_stopped() and not timer.paused:\n        print(\"Timer is running. Time left: \", timer.time_left)\n    elif timer.paused:\n        print(\"Timer is paused.\")\n    else:\n        print(\"Timer has stopped.\")\n```\n\nIn this script, the Timer is started and then immediately paused. After a 2-second delay (simulated by `yield` and `create_timer` for the sake of this example), the Timer is unpaused, resuming its countdown from where it left off. The `_process` function prints the timer's status and remaining time.\n\n---\n\n[godot_docs] ## Connecting a signal via code\n\n```gdscript\npublic override void _Ready()\n{\nvar timer = GetNode<Timer>(\"Timer\");\n}\n```"
+      "context": "[godot_docs] ## Complete script\n\n```gdscript\npublic override void _Ready()\n{\nvar timer = GetNode<Timer>(\"Timer\");\ntimer.Timeout += OnTimerTimeout;\n}\n```\n\n---\n\n[godot_docs] ## Main script\n\n```gdscript\nGetNode<Timer>(\"StartTimer\").Start();\n}\n```\n\n---\n\n[godot_docs] ## Connecting a signal via code\n\n```gdscript\npublic override void _Ready()\n{\nvar timer = GetNode<Timer>(\"Timer\");\n}\n```\n\n---\n\n[godot_docs] ## Signals as C# events\n\n```gdscript\nTimer myTimer = GetNode<Timer>(\"Timer\");\nmyTimer.Timeout += () => GD.Print(\"Timeout!\");\n```\n\n---\n\n[godot_docs] ## Creating a custom performance monitor\n\n```gdscript\nextends Timer\n```"
     }
   }
 ]

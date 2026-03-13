@@ -6,12 +6,14 @@ using Retrieval-Augmented Generation (RAG) with ChromaDB and sentence transforme
 """
 
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from typing import Optional
 
 from src import config
 from src.ingestion import pipeline
 from src.retrieval import searcher
+from src.retrieval import llm
 
 
 app = FastAPI(
@@ -49,6 +51,22 @@ class HealthResponse(BaseModel):
     status: str
     collection_name: str
     chunks_count: int
+
+
+class AskRequest(BaseModel):
+    """Request body for the /ask endpoint."""
+
+    query: str
+    top_k: Optional[int] = 5
+    stream: bool = True
+
+
+class AskResponse(BaseModel):
+    """Response body for the /ask endpoint (non-streaming)."""
+
+    query: str
+    answer: str
+    sources: list[dict]
 
 
 @app.get("/health", response_model=HealthResponse)
@@ -139,6 +157,84 @@ async def query(request: QueryRequest):
             results=result_dicts,
             context=context,
         )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/ask")
+async def ask(request: AskRequest):
+    """
+    Query the GDScript knowledge base and get an LLM-generated answer.
+
+    This endpoint performs RAG (Retrieval-Augmented Generation):
+    1. Searches ChromaDB for relevant code chunks
+    2. Builds an augmented prompt with the retrieved context
+    3. Sends to Ollama for generation
+
+    Request body (AskRequest):
+        - query (str, required): The question to ask.
+          Examples: "how to move a character", "signal connection", "export variables"
+        - top_k (int, optional): Number of chunks to retrieve. Default is 5.
+        - stream (bool, optional): Stream the response as it's generated. Default is true.
+
+    Returns:
+        If stream=true: Server-Sent Events (SSE) with tokens
+        If stream=false: JSON with answer and sources
+
+    Raises:
+        HTTPException: 500 if search or generation fails.
+    """
+    try:
+        top_k = request.top_k or config.QUERY_TOP_K
+
+        results = searcher.search(
+            query=request.query,
+            top_k=top_k,
+        )
+
+        sources = [
+            {
+                "text": r.text,
+                "source": r.source,
+                "source_type": r.source_type,
+                "distance": r.distance,
+                "metadata": r.metadata,
+            }
+            for r in results
+        ]
+
+        context = searcher.get_context_for_query(request.query, top_k=top_k)
+
+        prompt = f"""You are a helpful Godot 4.x GDScript programming assistant. Use the following context from the Godot knowledge base to answer the user's question.
+
+        Context:
+        {context}
+        
+        Question: {request.query}
+        """
+
+        client = llm.get_client()
+
+        if request.stream:
+            async def stream_generator():
+                for token in client.stream_generate(prompt):
+                    yield f"data: {token}\n\n"
+                yield "data: [DONE]\n\n"
+
+            return StreamingResponse(
+                stream_generator(),
+                media_type="text/event-stream",
+            )
+        else:
+            result = client.generate(prompt, stream=False)
+            answer = result.get("response", "")
+
+            return AskResponse(
+                query=request.query,
+                answer=answer,
+                sources=sources,
+            )
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
