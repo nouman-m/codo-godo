@@ -75,6 +75,7 @@ def print_summary(results: list[ScoreResult]):
     answered_count = sum(1 for r in results if r.answered)
     scores = [r.score for r in results]
     avg_score = sum(scores) / len(scores) if scores else 0
+    needs_review = len([r for r in results if r.score < 5])
 
     print("\n" + "=" * 60)
     print("SUMMARY")
@@ -82,6 +83,7 @@ def print_summary(results: list[ScoreResult]):
     print(f"Total questions:     {total}")
     print(f"Answered:            {answered_count}/{total} ({answered_count/total*100:.1f}%)")
     print(f"Average score:       {avg_score:.2f}/10")
+    print(f"Needs review:        {needs_review}")
     print("=" * 60)
 
 
@@ -142,6 +144,7 @@ def run_queries(queries_file: str = None, skip_api: bool = False, skip_scoring: 
     scorer = get_scorer("ollama")
 
     scored_results = []
+    needs_review = []
     for i, qr in enumerate(query_results, 1):
         question = qr.get("question")
         response = qr.get("response", {})
@@ -155,6 +158,13 @@ def run_queries(queries_file: str = None, skip_api: bool = False, skip_scoring: 
                 score=1,
                 reasoning="No chunks retrieved from API",
             ))
+            if 1 < 5:
+                needs_review.append(ScoreResult(
+                    question=question,
+                    answered=False,
+                    score=1,
+                    reasoning="No chunks retrieved from API",
+                ))
             continue
 
         print(f"\n[{i}/{len(query_results)}] Scoring: {question[:50]}...")
@@ -163,6 +173,8 @@ def run_queries(queries_file: str = None, skip_api: bool = False, skip_scoring: 
             score_result = scorer.score(question, chunks)
             scored_results.append(score_result)
             print_score_result(score_result)
+            if score_result.score < 5:
+                needs_review.append(score_result)
         except Exception as e:
             print(f"  -> Scoring ERROR: {e}")
             scored_results.append(ScoreResult(
@@ -171,8 +183,28 @@ def run_queries(queries_file: str = None, skip_api: bool = False, skip_scoring: 
                 score=1,
                 reasoning=f"Scoring error: {e}",
             ))
+            if 1 < 5:
+                needs_review.append(ScoreResult(
+                    question=question,
+                    answered=False,
+                    score=1,
+                    reasoning=f"Scoring error: {e}",
+                ))
 
         time.sleep(0.1)
+
+    if needs_review:
+        review_data = [
+            {
+                "question": r.question,
+                "answered": r.answered,
+                "score": r.score,
+                "reasoning": r.reasoning,
+            }
+            for r in needs_review
+        ]
+        save_results(review_data, config.REVIEW_FILE)
+        print(f"\n⚠ {len(needs_review)} results flagged for review (saved to {config.REVIEW_FILE})")
 
     scored_data = [
         {

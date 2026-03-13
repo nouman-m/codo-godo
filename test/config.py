@@ -13,3 +13,5 @@ QUERY_RESULTS_FILE = "test/results/query_results.json"
 SCORES_FILE = "test/results/scores.json"
 
 QUERY_TOP_K = 5
+
+REVIEW_FILE = "test/results/review.json"
