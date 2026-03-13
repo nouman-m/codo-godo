@@ -48,17 +48,21 @@ def search(
     query: str,
     top_k: int = None,
     filter_source_type: Optional[str] = None,
+    min_distance: float = 0.5,
 ) -> list[SearchResult]:
     """
     Search the knowledge base for chunks relevant to the query.
 
     Embeds the query and performs similarity search against stored chunks.
+    Filters by distance threshold and deduplicates results.
 
     Args:
         query: The search query string.
         top_k: Number of results to return. Defaults to config.QUERY_TOP_K.
         filter_source_type: Optional filter to restrict to a specific source type
                            (e.g., 'gdscript_repo', 'qa', 'godot_docs').
+        min_distance: Maximum distance threshold. Lower = more similar.
+                    Defaults to 0.5. Results with distance >= this are filtered out.
 
     Returns:
         List of SearchResult objects sorted by relevance (distance).
@@ -79,7 +83,7 @@ def search(
 
     results = collection.query(
         query_embeddings=[query_embedding],
-        n_results=top_k,
+        n_results=top_k * 3,
         where=where_filter,
     )
 
@@ -96,7 +100,17 @@ def search(
                 )
             )
 
-    return search_results
+    filtered = [r for r in search_results if r.distance < min_distance]
+
+    seen = set()
+    unique = []
+    for r in filtered:
+        text_key = r.text[:100]
+        if text_key not in seen:
+            seen.add(text_key)
+            unique.append(r)
+
+    return unique[:top_k]
 
 
 def get_context_for_query(query: str, top_k: int = None) -> str:

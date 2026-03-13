@@ -5,7 +5,10 @@ This module contains all configurable paths, model settings, and constants
 used throughout the application.
 """
 
+import os
 from pathlib import Path
+
+os.environ["CHROMA_TELEMETRY_DISABLED"] = "1"
 
 BASE_DIR = Path(__file__).parent
 DATA_DIR = BASE_DIR / "data"
@@ -31,6 +34,6 @@ HUGGINGFACE_DATASETS = {
 API_HOST = "0.0.0.0"
 API_PORT = 8000
 
-OLLAMA_MODEL = "llama3.1"
+OLLAMA_MODEL = "codellama"
 OLLAMA_BASE_URL = "http://localhost:11434"
 OLLAMA_TEMPERATURE = 0.7

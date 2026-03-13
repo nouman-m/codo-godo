@@ -48,6 +48,7 @@ def create_chunks() -> list[chunker.Chunk]:
         list[Chunk]: Combined list of all chunks from all data sources.
     """
     all_chunks = []
+    chunk_count = 0
 
     print("Processing GDScript repos...")
     try:
@@ -57,30 +58,46 @@ def create_chunks() -> list[chunker.Chunk]:
             print(f"Found {len(repo_files)} repo files")
             for repo_file in tqdm(repo_files, desc="Chunking repos"):
                 try:
-                    all_chunks.extend(chunker.chunk_gdscript_repo(repo_file))
+                    for chunk in chunker.chunk_gdscript_repo(repo_file):
+                        all_chunks.append(chunk)
+                        chunk_count += 1
+                        if chunk_count % 500 == 0:
+                            print(f"\n--- Chunk {chunk_count} sample (GDScript repo) ---")
+                            print(chunk.text[:500])
+                            print("--- end sample ---\n")
                 except Exception as e:
                     print(f"Error chunking {repo_file}: {e}")
     except FileNotFoundError:
         print("GDScript repos not found, skipping...")
 
-    print(f"Total GDScript chunks: {len(all_chunks)}")
+    print(f"Total GDScript chunks so far: {len(all_chunks)}")
 
     print("Processing Godot Q&A...")
     try:
         qa_dir = downloader.get_godot_qa_dir()
         if qa_dir.exists():
-            qa_chunks = list(chunker.chunk_godot_qa(qa_dir))
-            all_chunks.extend(qa_chunks)
-            print(f"Total Q&A chunks: {len(qa_chunks)}")
+            for chunk in chunker.chunk_godot_qa(qa_dir):
+                all_chunks.append(chunk)
+                chunk_count += 1
+                if chunk_count % 500 == 0:
+                    print(f"\n--- Chunk {chunk_count} sample (Q&A) ---")
+                    print(chunk.text[:500])
+                    print("--- end sample ---\n")
     except FileNotFoundError:
         print("Godot Q&A not found, skipping...")
+
+    print(f"Total chunks after Q&A: {len(all_chunks)}")
 
     print("Processing Godot docs HTML...")
     try:
         docs_dir = downloader.get_godot_docs_dir()
-        doc_chunks = list(chunker.chunk_godot_docs(docs_dir))
-        all_chunks.extend(doc_chunks)
-        print(f"Total docs chunks: {len(doc_chunks)}")
+        for chunk in chunker.chunk_godot_docs(docs_dir):
+            all_chunks.append(chunk)
+            chunk_count += 1
+            if chunk_count % 500 == 0:
+                print(f"\n--- Chunk {chunk_count} sample (Godot docs) ---")
+                print(chunk.text[:500])
+                print("--- end sample ---\n")
     except FileNotFoundError as e:
         print(f"Godot docs not found: {e}")
 

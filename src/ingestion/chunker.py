@@ -134,7 +134,8 @@ def chunk_rst_file(file_path: Path, source_name: str) -> Iterator[Chunk]:
     Chunk a single RST file from Godot documentation.
 
     Extracts sections, descriptions, and code examples from RST files,
-    stripping RST directives and formatting.
+    stripping RST directives and formatting. Handles tabs correctly to
+    capture only GDScript code blocks.
 
     Args:
         file_path: Path to the RST file.
@@ -154,13 +155,48 @@ def chunk_rst_file(file_path: Path, source_name: str) -> Iterator[Chunk]:
     content = re.sub(r"^:.*?:.*?$", "", content, flags=re.MULTILINE)
 
     lines = content.split("\n")
+    
     current_section = []
     current_heading = None
     code_block_content = []
+    
+    in_tabs_block = False
+    active_tab = None
+    tabs_indent_level = 0
+    code_directive_lang = None
+    
+    seen_chunks = set()
 
     for i, line in enumerate(lines):
-        underline_match = re.match(r"^=+$|^-+$|~+$|\^+$", line.strip())
-        if underline_match and i > 0 and len(lines[i-1].strip()) > 0 and len(line.strip()) >= len(lines[i-1].strip()):
+        stripped = line.strip()
+        
+        if stripped.startswith(".. tabs::"):
+            in_tabs_block = True
+            tabs_indent_level = len(line) - len(line.lstrip())
+            active_tab = None
+            continue
+        
+        if in_tabs_block:
+            current_indent = len(line) - len(line.lstrip()) if line.strip() else 0
+            if stripped.startswith(".. code-tab::"):
+                if "gdscript" in stripped.lower():
+                    active_tab = "gdscript"
+                else:
+                    active_tab = "csharp"
+                continue
+            elif current_indent <= tabs_indent_level and stripped and not stripped.startswith(".."):
+                in_tabs_block = False
+                active_tab = None
+        
+        if stripped.startswith(".. code::"):
+            if "gdscript" in stripped:
+                code_directive_lang = "gdscript"
+            else:
+                code_directive_lang = "non-gdscript"
+            continue
+        
+        underline_match = re.match(r"^=+$|^-+$|~+$|\^+$", stripped)
+        if underline_match and i > 0 and len(lines[i-1].strip()) > 0 and len(stripped) >= len(lines[i-1].strip()):
             if current_section or code_block_content:
                 section_text = "\n".join(current_section).strip()
                 code_text = "\n".join(code_block_content).strip()
@@ -170,12 +206,14 @@ def chunk_rst_file(file_path: Path, source_name: str) -> Iterator[Chunk]:
                     parts.append(f"## {current_heading}")
                 if section_text:
                     parts.append(section_text)
-                if code_text:
+                if code_text and _is_quality_code(code_text):
                     parts.append(f"\n```gdscript\n{code_text}\n```")
 
                 if parts:
                     text = "\n".join(parts)
-                    if len(text) > 100:
+                    chunk_key = text[:200].lower().strip()
+                    if chunk_key not in seen_chunks and len(text) > 100:
+                        seen_chunks.add(chunk_key)
                         yield Chunk(
                             text=text,
                             source=source_name,
@@ -189,26 +227,37 @@ def chunk_rst_file(file_path: Path, source_name: str) -> Iterator[Chunk]:
             current_heading = lines[i-1].strip()
             current_section = []
             code_block_content = []
+            code_directive_lang = None
 
-        elif line.strip().startswith(".. code-tab::"):
+        elif stripped.startswith(".. code-tab::"):
             continue
         elif line.startswith("    ") or line.startswith("\t"):
-            code_block_content.append(line.strip())
+            if in_tabs_block:
+                if active_tab == "gdscript":
+                    code_block_content.append(line.strip())
+            elif code_directive_lang == "gdscript":
+                code_block_content.append(line.strip())
+            elif code_directive_lang is None and not in_tabs_block:
+                code_block_content.append(line.strip())
         else:
             if code_block_content:
                 code_text = "\n".join(code_block_content).strip()
-                if code_text and current_heading:
-                    yield Chunk(
-                        text=f"## {current_heading}\n\n```gdscript\n{code_text}\n```",
-                        source=source_name,
-                        source_type="godot_docs",
-                        metadata={
-                            "file": str(file_path),
-                            "heading": current_heading,
-                        },
-                    )
+                if code_text and current_heading and _is_quality_code(code_text):
+                    chunk_key = (current_heading + code_text)[:200].lower().strip()
+                    if chunk_key not in seen_chunks:
+                        seen_chunks.add(chunk_key)
+                        yield Chunk(
+                            text=f"## {current_heading}\n\n```gdscript\n{code_text}\n```",
+                            source=source_name,
+                            source_type="godot_docs",
+                            metadata={
+                                "file": str(file_path),
+                                "heading": current_heading,
+                            },
+                        )
                 code_block_content = []
-            if line.strip() and not line.startswith(".. "):
+            code_directive_lang = None
+            if stripped and not stripped.startswith(".. "):
                 current_section.append(line)
 
     if current_section or code_block_content:
@@ -220,12 +269,14 @@ def chunk_rst_file(file_path: Path, source_name: str) -> Iterator[Chunk]:
             parts.append(f"## {current_heading}")
         if section_text:
             parts.append(section_text)
-        if code_text:
+        if code_text and _is_quality_code(code_text):
             parts.append(f"\n```gdscript\n{code_text}\n```")
 
         if parts:
             text = "\n".join(parts)
-            if len(text) > 100:
+            chunk_key = text[:200].lower().strip()
+            if chunk_key not in seen_chunks and len(text) > 100:
+                seen_chunks.add(chunk_key)
                 yield Chunk(
                     text=text,
                     source=source_name,
@@ -235,6 +286,27 @@ def chunk_rst_file(file_path: Path, source_name: str) -> Iterator[Chunk]:
                         "heading": current_heading or "",
                     },
                 )
+
+
+def _is_quality_code(code_text: str) -> bool:
+    """Check if code block meets minimum quality threshold."""
+    if not code_text:
+        return False
+    lines = [line.strip() for line in code_text.split("\n") if line.strip()]
+    if len(lines) < 2:
+        return False
+    if len(code_text) < 30:
+        return False
+    if len(lines) <= 3:
+        skip_patterns = ["using godot", "extends", "pass", "..."]
+        all_skip = True
+        for line in lines:
+            if not any(p in line.lower() for p in skip_patterns):
+                all_skip = False
+                break
+        if all_skip:
+            return False
+    return True
 
 
 def chunk_godot_docs(docs_dir: Path) -> Iterator[Chunk]:
