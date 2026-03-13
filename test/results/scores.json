@@ -1,0 +1,32 @@
+[
+  {
+    "question": "How to move a character in Godot 4?",
+    "answered": true,
+    "score": 8,
+    "reasoning": "The context provides examples and code snippets on moving a kinematic character in Godot, which directly answers the user's question."
+  },
+  {
+    "question": "How to connect a signal in GDScript?",
+    "answered": true,
+    "score": 8,
+    "reasoning": "The context contains several relevant sections explaining how to connect a signal in GDScript, including connecting via code and using the signal connect method. However, the question of how to connect a signal is not explicitly answered in one section, requiring some searching through the provided chunks."
+  },
+  {
+    "question": "How to export a variable in Godot?",
+    "answered": true,
+    "score": 8,
+    "reasoning": "The context contains multiple relevant sections about exporting variables in Godot, including specific code examples and annotations. While the sections are scattered across different files, the information is accurate and clear."
+  },
+  {
+    "question": "How to use move_and_slide?",
+    "answered": true,
+    "score": 8,
+    "reasoning": "The context directly answers the question about how to use move_and_slide, providing a clear description of its purpose and usage. However, it would be even more helpful if the context provided more specific information about implementing move_and_slide in different scenarios, such as handling collisions or edge cases."
+  },
+  {
+    "question": "How to create a timer?",
+    "answered": true,
+    "score": 8,
+    "reasoning": "The context contains multiple chunks with information on creating a timer in Godot, including configuring a Timer node, implementing a paused timer, and using the Timer's methods. However, the question 'How to create a timer?' is quite broad, and the context's relevance could be improved with more specific examples or a more detailed explanation of the timer creation process."
+  }
+]

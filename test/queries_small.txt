@@ -1,0 +1,6 @@
+# Test Questions (5)
+How to move a character in Godot 4?
+How to connect a signal in GDScript?
+How to export a variable in Godot?
+How to use move_and_slide?
+How to create a timer?
