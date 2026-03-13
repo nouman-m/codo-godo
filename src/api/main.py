@@ -59,6 +59,7 @@ class AskRequest(BaseModel):
     query: str
     top_k: Optional[int] = 5
     stream: bool = True
+    llm_provider: Optional[str] = "opencode"
 
 
 class AskResponse(BaseModel):
@@ -169,13 +170,14 @@ async def ask(request: AskRequest):
     This endpoint performs RAG (Retrieval-Augmented Generation):
     1. Searches ChromaDB for relevant code chunks
     2. Builds an augmented prompt with the retrieved context
-    3. Sends to Ollama for generation
+    3. Sends to the configured LLM for generation (OpenCode or Ollama)
 
     Request body (AskRequest):
         - query (str, required): The question to ask.
           Examples: "how to move a character", "signal connection", "export variables"
         - top_k (int, optional): Number of chunks to retrieve. Default is 5.
         - stream (bool, optional): Stream the response as it's generated. Default is true.
+        - llm_provider (str, optional): LLM provider to use. Options: "opencode" (default), "ollama"
 
     Returns:
         If stream=true: Server-Sent Events (SSE) with tokens
@@ -215,7 +217,7 @@ async def ask(request: AskRequest):
         Question: {request.query}
         """
 
-        client = llm.get_client()
+        client = llm.get_llm_client(provider=request.llm_provider)
 
         if request.stream:
             async def stream_generator():
@@ -229,7 +231,10 @@ async def ask(request: AskRequest):
             )
         else:
             result = client.generate(prompt, stream=False)
-            answer = result.get("response", "")
+            if request.llm_provider == "opencode":
+                answer = result.get("choices", [{}])[0].get("message", {}).get("content", "")
+            else:
+                answer = result.get("response", "")
 
             return AskResponse(
                 query=request.query,

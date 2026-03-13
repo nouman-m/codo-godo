@@ -37,3 +37,10 @@ API_PORT = 8000
 OLLAMA_MODEL = "codellama"
 OLLAMA_BASE_URL = "http://localhost:11434"
 OLLAMA_TEMPERATURE = 0.7
+
+OPENCODE_API_KEY = "sk-5zvOAeHrvArnaqO1BLnONrPMyYshaipvxq4LDZy4cSlbYjWVqpHP9GJEd52ZA7gF"
+OPENCODE_BASE_URL = "https://opencode.ai/zen/v1"
+OPENCODE_MODEL = "minimax-m2.5-free"
+OPENCODE_TEMPERATURE = 0.7
+
+DEFAULT_LLM_PROVIDER = "opencode"
