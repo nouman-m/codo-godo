@@ -1,3 +1,10 @@
+"""
+Chunking utilities for GDScript files and Godot documentation.
+
+Provides functions to split GDScript code, HTML documentation, and Q&A data
+into smaller chunks suitable for embedding and retrieval.
+"""
+
 import re
 from pathlib import Path
 from dataclasses import dataclass
@@ -9,6 +16,8 @@ from src import config
 
 @dataclass
 class Chunk:
+    """Represents a text chunk with metadata for embedding and retrieval."""
+
     text: str
     source: str
     source_type: str
@@ -16,13 +25,25 @@ class Chunk:
 
 
 def chunk_gdscript_file(file_path: Path, source_name: str) -> Iterator[Chunk]:
+    """
+    Chunk a GDScript file into smaller pieces with overlapping context.
+
+    Splits code at function or class boundaries, maintaining up to
+    CHUNK_MAX_LINES per chunk with CHUNK_OVERLAP_LINES lines of overlap.
+
+    Args:
+        file_path: Path to the GDScript file.
+        source_name: Name of the source repository or file.
+
+    Yields:
+        Chunk objects containing the text, source, source_type, and metadata.
+    """
     content = file_path.read_text(encoding="utf-8", errors="ignore")
     lines = content.split("\n")
 
     current_chunk_lines = []
     current_chunk_start = 0
 
-    in_function = False
     function_name = None
 
     for i, line in enumerate(lines):
@@ -30,10 +51,8 @@ def chunk_gdscript_file(file_path: Path, source_name: str) -> Iterator[Chunk]:
         class_match = re.match(r"^class\s+(\w+)", line.strip())
 
         if func_match:
-            in_function = True
             function_name = func_match.group(1)
         elif class_match:
-            in_function = True
             function_name = class_match.group(1)
 
         current_chunk_lines.append(line)
@@ -72,9 +91,28 @@ def chunk_gdscript_file(file_path: Path, source_name: str) -> Iterator[Chunk]:
 
 
 def chunk_gdscript_repo(repo_file: Path) -> Iterator[Chunk]:
+    """
+    Chunk a GDScript repository file containing multiple code snippets.
+
+    Parses a repository file from the HuggingFace dataset, extracting individual
+    GDScript files and chunking them. Skips non-Godot 4 repositories.
+
+    Args:
+        repo_file: Path to the repository file from the dataset.
+
+    Yields:
+        Chunk objects for each code snippet in the repository.
+    """
     content = repo_file.read_text(encoding="utf-8", errors="ignore")
 
     repo_name = repo_file.stem
+
+    version_pattern = r"### Godot version:\s*(\d+)|Godot version:\s*(\d+)"
+    version_match = re.search(version_pattern, content)
+    version = version_match.group(1) or version_match.group(2) if version_match else None
+    if version != "4":
+        print(f"Skipping {repo_name}: not Godot 4")
+        return
 
     pattern = r"### Files:\s*File name: (.*?)\n```(?:gdscript|markdown)?\n(.*?)```"
     matches = re.findall(pattern, content, re.DOTALL)
@@ -93,6 +131,19 @@ def chunk_gdscript_repo(repo_file: Path) -> Iterator[Chunk]:
 
 
 def chunk_html_file(file_path: Path, source_name: str) -> Iterator[Chunk]:
+    """
+    Chunk a single HTML file from Godot documentation.
+
+    Extracts sections marked by headings (h1, h2, h3) and creates chunks
+    from each section's content.
+
+    Args:
+        file_path: Path to the HTML file.
+        source_name: Name identifying the documentation source.
+
+    Yields:
+        Chunk objects for each section in the HTML file.
+    """
     html_content = file_path.read_text(encoding="utf-8", errors="ignore")
     soup = BeautifulSoup(html_content, "lxml")
 
@@ -121,6 +172,17 @@ def chunk_html_file(file_path: Path, source_name: str) -> Iterator[Chunk]:
 
 
 def chunk_godot_docs(docs_dir: Path) -> Iterator[Chunk]:
+    """
+    Chunk all HTML files in the Godot documentation directory.
+
+    Recursively finds all HTML files and processes them using chunk_html_file.
+
+    Args:
+        docs_dir: Path to the extracted Godot documentation directory.
+
+    Yields:
+        Chunk objects for each section in all HTML files.
+    """
     html_files = list(docs_dir.rglob("*.html"))
     print(f"Found {len(html_files)} HTML files in {docs_dir}")
 
@@ -134,18 +196,31 @@ def chunk_godot_docs(docs_dir: Path) -> Iterator[Chunk]:
 
 
 def chunk_godot_qa(data_dir: Path) -> Iterator[Chunk]:
-    import pandas as pd
+    """
+    Chunk Godot Q&A data from the Glaive AI dataset.
 
-    parquet_file = data_dir / "train.parquet"
-    if not parquet_file.exists():
-        print(f"QA file not found: {parquet_file}")
+    Reads the JSON file containing prompt-response pairs and creates
+    chunks from each Q&A entry.
+
+    Args:
+        data_dir: Path to the directory containing the Q&A JSON file.
+
+    Yields:
+        Chunk objects for each Q&A pair.
+    """
+    import json
+
+    json_file = data_dir / "data" / "glaive_godot4_docs.json"
+    if not json_file.exists():
+        print(f"QA file not found: {json_file}")
         return
 
-    df = pd.read_parquet(parquet_file)
+    with open(json_file, "r", encoding="utf-8") as f:
+        qa_data = json.load(f)
 
-    for _, row in df.iterrows():
-        prompt = row.get("prompt", "")
-        response = row.get("response", "")
+    for item in qa_data:
+        prompt = item.get("prompt", "")
+        response = item.get("response", "")
 
         if not prompt or not response:
             continue

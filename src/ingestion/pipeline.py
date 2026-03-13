@@ -1,3 +1,10 @@
+"""
+Data ingestion pipeline for the Codo-Godo RAG system.
+
+Orchestrates downloading data from HuggingFace, chunking GDScript files and
+HTML documentation, generating embeddings, and storing in ChromaDB.
+"""
+
 import chromadb
 from chromadb.config import Settings as ChromaSettings
 from sentence_transformers import SentenceTransformer
@@ -8,6 +15,12 @@ from src.ingestion import downloader, chunker
 
 
 def get_chroma_client():
+    """
+    Create and return a persistent ChromaDB client.
+
+    Returns:
+        chromadb.PersistentClient: Configured client pointing to CHROMA_DIR.
+    """
     return chromadb.PersistentClient(
         path=str(config.CHROMA_DIR),
         settings=ChromaSettings(anonymized_telemetry=False),
@@ -15,10 +28,25 @@ def get_chroma_client():
 
 
 def get_embedding_model():
+    """
+    Load and return the sentence transformer embedding model.
+
+    Returns:
+        SentenceTransformer: The configured embedding model.
+    """
     return SentenceTransformer(config.EMBEDDING_MODEL)
 
 
 def create_chunks() -> list[chunker.Chunk]:
+    """
+    Process all data sources and create chunks.
+
+    Iterates through GDScript repos, Godot Q&A, and Godot documentation,
+    yielding chunks from each source.
+
+    Returns:
+        list[Chunk]: Combined list of all chunks from all data sources.
+    """
     all_chunks = []
 
     print("Processing GDScript repos...")
@@ -61,6 +89,19 @@ def create_chunks() -> list[chunker.Chunk]:
 
 
 def embed_chunks(chunks: list[chunker.Chunk], model) -> tuple[list[str], list[dict], any]:
+    """
+    Generate embeddings for a list of chunks using the provided model.
+
+    Args:
+        chunks: List of Chunk objects to embed.
+        model: SentenceTransformer model for encoding.
+
+    Returns:
+        Tuple containing:
+            - texts: List of chunk text strings
+            - metadatas: List of metadata dictionaries
+            - embeddings: numpy array of embeddings
+    """
     texts = [chunk.text for chunk in chunks]
     metadatas = [
         {
@@ -83,6 +124,15 @@ def store_in_chroma(
     embeddings,
     client,
 ):
+    """
+    Store embedded chunks in ChromaDB collection.
+
+    Args:
+        texts: List of text strings to store.
+        metadatas: List of metadata dictionaries for each text.
+        embeddings: numpy array of embeddings.
+        client: ChromaDB client instance.
+    """
     collection = client.get_or_create_collection(
         name=config.CHROMA_COLLECTION_NAME,
     )
@@ -100,6 +150,16 @@ def store_in_chroma(
 
 
 def run_ingestion(download: bool = True):
+    """
+    Main ingestion pipeline that orchestrates the entire data processing workflow.
+
+    Optionally downloads data from HuggingFace, creates chunks from all sources,
+    generates embeddings, and stores them in ChromaDB.
+
+    Args:
+        download: If True, downloads fresh data from HuggingFace. If False,
+                 uses existing raw data in DATA_DIR.
+    """
     if download:
         print("=== Downloading data ===")
         try:
@@ -133,4 +193,4 @@ def run_ingestion(download: bool = True):
 
 
 if __name__ == "__main__":
-    run_ingestion(download=True)
+    run_ingestion(download=False)

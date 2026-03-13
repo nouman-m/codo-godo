@@ -1,3 +1,10 @@
+"""
+Configuration settings for the Codo-Godo RAG system.
+
+This module contains all configurable paths, model settings, and constants
+used throughout the application.
+"""
+
 from pathlib import Path
 
 BASE_DIR = Path(__file__).parent
