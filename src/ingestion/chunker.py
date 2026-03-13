@@ -1,7 +1,7 @@
 """
 Chunking utilities for GDScript files and Godot documentation.
 
-Provides functions to split GDScript code, HTML documentation, and Q&A data
+Provides functions to split GDScript code, RST documentation, and Q&A data
 into smaller chunks suitable for embedding and retrieval.
 """
 
@@ -9,7 +9,6 @@ import re
 from pathlib import Path
 from dataclasses import dataclass
 from typing import Iterator
-from bs4 import BeautifulSoup
 
 from src import config
 
@@ -130,69 +129,145 @@ def chunk_gdscript_repo(repo_file: Path) -> Iterator[Chunk]:
         temp_file_path.unlink(missing_ok=True)
 
 
-def chunk_html_file(file_path: Path, source_name: str) -> Iterator[Chunk]:
+def chunk_rst_file(file_path: Path, source_name: str) -> Iterator[Chunk]:
     """
-    Chunk a single HTML file from Godot documentation.
+    Chunk a single RST file from Godot documentation.
 
-    Extracts sections marked by headings (h1, h2, h3) and creates chunks
-    from each section's content.
+    Extracts sections, descriptions, and code examples from RST files,
+    stripping RST directives and formatting.
 
     Args:
-        file_path: Path to the HTML file.
+        file_path: Path to the RST file.
         source_name: Name identifying the documentation source.
 
     Yields:
-        Chunk objects for each section in the HTML file.
+        Chunk objects for each section in the RST file.
     """
-    html_content = file_path.read_text(encoding="utf-8", errors="ignore")
-    soup = BeautifulSoup(html_content, "lxml")
+    content = file_path.read_text(encoding="utf-8", errors="ignore")
 
-    for section in soup.find_all(["section", "div"]):
-        h_tag = section.find(["h1", "h2", "h3"])
-        if not h_tag:
+    if content.strip().startswith("<!DOCTYPE") or content.strip().startswith("<html"):
+        return
+
+    content = re.sub(r"^\.\. \w+::.*$", "", content, flags=re.MULTILINE)
+    content = re.sub(r"^\.\. \w+$", "", content, flags=re.MULTILINE)
+    content = re.sub(r"^:github_url:.*$", "", content, flags=re.MULTILINE)
+    content = re.sub(r"^:.*?:.*?$", "", content, flags=re.MULTILINE)
+
+    lines = content.split("\n")
+    current_section = []
+    current_heading = None
+    code_block_content = []
+
+    for i, line in enumerate(lines):
+        underline_match = re.match(r"^=+$|^-+$|~+$|\^+$", line.strip())
+        if underline_match and i > 0 and len(lines[i-1].strip()) > 0 and len(line.strip()) >= len(lines[i-1].strip()):
+            if current_section or code_block_content:
+                section_text = "\n".join(current_section).strip()
+                code_text = "\n".join(code_block_content).strip()
+
+                parts = []
+                if current_heading:
+                    parts.append(f"## {current_heading}")
+                if section_text:
+                    parts.append(section_text)
+                if code_text:
+                    parts.append(f"\n```gdscript\n{code_text}\n```")
+
+                if parts:
+                    text = "\n".join(parts)
+                    if len(text) > 100:
+                        yield Chunk(
+                            text=text,
+                            source=source_name,
+                            source_type="godot_docs",
+                            metadata={
+                                "file": str(file_path),
+                                "heading": current_heading or "",
+                            },
+                        )
+
+            current_heading = lines[i-1].strip()
+            current_section = []
+            code_block_content = []
+
+        elif line.strip().startswith(".. code-tab::"):
             continue
+        elif line.startswith("    ") or line.startswith("\t"):
+            code_block_content.append(line.strip())
+        else:
+            if code_block_content:
+                code_text = "\n".join(code_block_content).strip()
+                if code_text and current_heading:
+                    yield Chunk(
+                        text=f"## {current_heading}\n\n```gdscript\n{code_text}\n```",
+                        source=source_name,
+                        source_type="godot_docs",
+                        metadata={
+                            "file": str(file_path),
+                            "heading": current_heading,
+                        },
+                    )
+                code_block_content = []
+            if line.strip() and not line.startswith(".. "):
+                current_section.append(line)
 
-        heading = h_tag.get_text(strip=True)
-        section_text = section.get_text(separator="\n", strip=True)
+    if current_section or code_block_content:
+        section_text = "\n".join(current_section).strip()
+        code_text = "\n".join(code_block_content).strip()
 
-        if len(section_text) < 50:
-            continue
+        parts = []
+        if current_heading:
+            parts.append(f"## {current_heading}")
+        if section_text:
+            parts.append(section_text)
+        if code_text:
+            parts.append(f"\n```gdscript\n{code_text}\n```")
 
-        text = f"## {heading}\n\n{section_text}"
-
-        yield Chunk(
-            text=text,
-            source=source_name,
-            source_type="godot_docs",
-            metadata={
-                "file": str(file_path),
-                "heading": heading,
-            },
-        )
+        if parts:
+            text = "\n".join(parts)
+            if len(text) > 100:
+                yield Chunk(
+                    text=text,
+                    source=source_name,
+                    source_type="godot_docs",
+                    metadata={
+                        "file": str(file_path),
+                        "heading": current_heading or "",
+                    },
+                )
 
 
 def chunk_godot_docs(docs_dir: Path) -> Iterator[Chunk]:
     """
-    Chunk all HTML files in the Godot documentation directory.
+    Chunk all RST files in the Godot documentation _sources directory.
 
-    Recursively finds all HTML files and processes them using chunk_html_file.
+    Finds all .rst.txt files in the _sources subdirectory and processes them
+    using chunk_rst_file.
 
     Args:
         docs_dir: Path to the extracted Godot documentation directory.
 
     Yields:
-        Chunk objects for each section in all HTML files.
+        Chunk objects for each section in all RST files.
     """
-    html_files = list(docs_dir.rglob("*.html"))
-    print(f"Found {len(html_files)} HTML files in {docs_dir}")
+    sources_dir = docs_dir / "_sources"
+    if not sources_dir.exists():
+        print(f"_sources directory not found in {docs_dir}")
+        return
 
-    for html_file in html_files:
+    rst_files = list(sources_dir.rglob("*.rst.txt"))
+    print(f"Found {len(rst_files)} RST files in {sources_dir}")
+
+    for rst_file in rst_files:
         try:
-            relative_path = html_file.relative_to(docs_dir)
+            if rst_file.name in ("404.rst.txt",):
+                continue
+
+            relative_path = rst_file.relative_to(sources_dir)
             source_name = str(relative_path.parent / relative_path.stem)
-            yield from chunk_html_file(html_file, source_name)
+            yield from chunk_rst_file(rst_file, source_name)
         except Exception as e:
-            print(f"Error processing {html_file}: {e}")
+            print(f"Error processing {rst_file}: {e}")
 
 
 def chunk_godot_qa(data_dir: Path) -> Iterator[Chunk]:
