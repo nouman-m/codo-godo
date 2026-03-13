@@ -204,7 +204,7 @@ async def ask(request: AskRequest):
         ]
 
         print(f"Sending: {request.query}")
-        context = searcher.get_context_for_query(request.query, top_k=top_k)
+        context = searcher.get_context_for_query(request.query, top_k=top_k, min_distance=1)
         print(f"Got: {context}")
 
         prompt = f"""You are a helpful Godot 4.x GDScript programming assistant. Use the following context from the Godot knowledge base to answer the user's question.

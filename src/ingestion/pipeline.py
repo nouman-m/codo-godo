@@ -155,15 +155,27 @@ def store_in_chroma(
     )
 
     ids = [f"chunk_{i}" for i in range(len(texts))]
+    
+    max_batch_size = 5000
+    total = len(texts)
+    
+    print(f"Storing {total} chunks in ChromaDB (batched)...")
+    for i in range(0, total, max_batch_size):
+        batch_end = min(i + max_batch_size, total)
+        batch_ids = ids[i:batch_end]
+        batch_texts = texts[i:batch_end]
+        batch_metadatas = metadatas[i:batch_end]
+        batch_embeddings = embeddings[i:batch_end].tolist()
+        
+        collection.add(
+            ids=batch_ids,
+            documents=batch_texts,
+            metadatas=batch_metadatas,
+            embeddings=batch_embeddings,
+        )
+        print(f"  Stored {batch_end}/{total} chunks...")
 
-    collection.add(
-        ids=ids,
-        documents=texts,
-        metadatas=metadatas,
-        embeddings=embeddings.tolist(),
-    )
-
-    print(f"Stored {len(ids)} chunks in ChromaDB")
+    print(f"Stored {total} chunks in ChromaDB")
 
 
 def run_ingestion(download: bool = True):

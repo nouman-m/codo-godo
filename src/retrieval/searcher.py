@@ -113,7 +113,7 @@ def search(
     return unique[:top_k]
 
 
-def get_context_for_query(query: str, top_k: int = None) -> str:
+def get_context_for_query(query: str, top_k: int = None, min_distance: float = 0.5) -> str:
     """
     Generate a formatted context string from search results.
 
@@ -127,8 +127,9 @@ def get_context_for_query(query: str, top_k: int = None) -> str:
     Returns:
         Formatted string with source type labels and content from each result,
         separated by horizontal rules.
+        min_distance: The cutoff distance
     """
-    results = search(query, top_k=top_k)
+    results = search(query, top_k=top_k, min_distance=min_distance)
     context_parts = []
     for r in results:
         context_parts.append(f"[{r.source_type}] {r.text}")
